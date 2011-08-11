@@ -1,5 +1,12 @@
 package sc2replayorganizergui;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.FilenameFilter;
+import java.io.IOException;
 import java.util.ArrayList;
 
 import org.eclipse.core.runtime.IAdaptable;
@@ -24,7 +31,6 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.DirectoryDialog;
-import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Menu;
 import org.eclipse.ui.IActionBars;
 import org.eclipse.ui.ISharedImages;
@@ -38,6 +44,7 @@ public class View extends ViewPart {
 	public static final String ID = "SC2ReplayOrganizerGUI.view";
 
 	private TreeViewer viewer;
+	private TreeViewer viewer2;
 	private DrillDownAdapter drillDownAdapter;
 	private Action rename;
 	private Action setRenamingRules;
@@ -104,6 +111,9 @@ public class View extends ViewPart {
 		private TreeParent invisibleRoot;
 
 		public void inputChanged(Viewer v, Object oldInput, Object newInput) {
+			//Read from file
+			System.out.println("inputChanged");
+			initialize();
 		}
 		public void dispose() {
 		}
@@ -137,10 +147,29 @@ public class View extends ViewPart {
  * expose its hierarchy.
  */
 		private void initialize() {
-			TreeObject to1 = new TreeObject("Replay 1");
-			TreeObject to2 = new TreeObject("Replay 2");
-			TreeObject to3 = new TreeObject("Replay 3");
-			TreeObject to4 = new TreeObject("Replay 4");
+			TreeParent root = new TreeParent("Select replay directory");
+			String source = "/Users/knutfunkel/Dropbox/sc/grymme-replays/Multiplayer/";
+			
+			try {
+			    BufferedReader in = new BufferedReader(new FileReader("source"));
+			    String dir;
+			    while ((dir = in.readLine()) != null) {
+			    	source = dir;
+			    	System.out.println(dir + root);
+			    			    		
+			    }
+			    in.close();
+			} catch (IOException e) {
+				System.out.println(e.getMessage());
+			}
+			
+			process(source, root);	
+			
+			
+//			TreeObject to1 = new TreeObject("Replay 1");
+//			TreeObject to2 = new TreeObject("Replay 2");
+//			TreeObject to3 = new TreeObject("Replay 3");
+//			TreeObject to4 = new TreeObject("Replay 4");
 			//TreeParent p1 = new TreeParent("Parent 1");
 			//p1.addChild(to1);
 			//p1.addChild(to2);
@@ -150,11 +179,11 @@ public class View extends ViewPart {
 			//TreeParent p2 = new TreeParent("Parent 2");
 			//p2.addChild(to4);
 			
-			TreeParent root = new TreeParent("Select replay directory");
-			root.addChild(to1);
-			root.addChild(to2);
-			root.addChild(to3);
-			root.addChild(to4);
+			
+//			root.addChild(to1);
+//			root.addChild(to2);
+//			root.addChild(to3);
+//			root.addChild(to4);
 			//root.addChild(p2);
 			
 			invisibleRoot = new TreeParent("");
@@ -186,6 +215,13 @@ public class View extends ViewPart {
 		viewer.setLabelProvider(new ViewLabelProvider());
 		viewer.setSorter(new NameSorter());
 		viewer.setInput(getViewSite());
+		
+		viewer2 = new TreeViewer(parent, SWT.MULTI | SWT.H_SCROLL | SWT.V_SCROLL);
+		drillDownAdapter = new DrillDownAdapter(viewer2);
+		viewer2.setContentProvider(new ViewContentProvider());
+		viewer2.setLabelProvider(new ViewLabelProvider());
+		viewer2.setSorter(new NameSorter());
+		viewer2.setInput(getViewSite());
 
 		// Create the help context id for the viewer's control
 		PlatformUI.getWorkbench().getHelpSystem().setHelp(viewer.getControl(), "SC2ReplayOrganizer.viewer");
@@ -196,6 +232,23 @@ public class View extends ViewPart {
 		contributeToActionBars();
 	}
 	
+	public void process(String dir, TreeParent root) {
+		
+		File directory = new File (dir);
+		System.out.println(directory.getName());
+		FilenameFilter filter = new FilenameFilter() {
+			public boolean accept(File dir, String name) {
+				return name.endsWith(".SC2Replay");
+			}
+		};
+
+		for (String file : directory.list(filter)) {
+			root.addChild(new TreeObject(file));
+		}
+		
+		
+	}
+
 	class NameSorter extends ViewerSorter {
 	}
 	
@@ -272,19 +325,28 @@ public class View extends ViewPart {
 	private void hookDoubleClickAction() {
 		viewer.addDoubleClickListener(new IDoubleClickListener() {
 			public void doubleClick(DoubleClickEvent event) {
+				DirectoryDialog browse = new DirectoryDialog(viewer.getControl().getShell());
+				String folder = browse.open();
+				writeToSourceFile(folder);
 				showFileBrowser.run();
 			}
 		});
 	}
+	protected void writeToSourceFile(String folder) {
+		try {
+		    BufferedWriter out = new BufferedWriter(new FileWriter("source"));
+		    out.write(folder);
+		    out.close();
+		} catch (IOException e) {
+			System.out.println(e.getMessage());
+		}
+	}
+
 	private void showMessage(String message) {
-		DirectoryDialog browse = new DirectoryDialog(viewer.getControl().getShell());
-		String folder = browse.open();
-		
-		
 		
 		MessageDialog.openInformation(
 			viewer.getControl().getShell(),
-			"Directory selected: " + folder,
+			"Action: ",
 			message);
 	}
 
